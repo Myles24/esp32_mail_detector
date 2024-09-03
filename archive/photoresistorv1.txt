@@ -1,0 +1,121 @@
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <esp_sleep.h>
+#include "time.h"
+#include <NTPClient.h>
+#include <WiFiUdp.h>
+
+const char *ssid = "XXXXXXX";
+const char *password = "XXXXXXXX*";
+const char* ntpServer = "pool.ntp.org";
+const char *serverUrl = "http://192.168.1.112:3000/photoresistor";
+
+const int sensorPin = 2;
+String timeStamp;
+
+WiFiUDP ntpUDP;
+NTPClient timeClient(ntpUDP);
+
+double hour; // current time displayed as a single hour
+int ontime = 0; // number of seconds left in active phase
+
+void setup() {
+  Serial.begin(115200);
+  delay(1500);
+  connectToWifi();
+  timeClient.begin();
+  timeClient.setTimeOffset(-18000);  // fetches EST from time server
+  while(!timeClient.update()) {
+    timeClient.forceUpdate();
+  }
+  ontime = getOntime();
+  Serial.println(timeClient.getFormattedTime());
+  Serial.println("Will be active for " + String(ontime / (60.0 * 60)) + " hours.");
+  WiFi.mode(WIFI_OFF);
+}
+
+void loop() {
+  checkDeepSleep();
+  int analogValue = analogRead(sensorPin);
+  if (analogValue > 2000){  // sends photoresistor value to server if light is detected past a certain threshold 
+    WiFi.mode(WIFI_STA);
+    connectToWifi();
+    sendToServer(analogValue);
+    Serial.println(timeClient.getFormattedTime());
+    delay(5000);
+    WiFi.mode(WIFI_OFF);
+    ontime -= 5;
+  }
+  delay(1000);
+  ontime--;  // decrements ontime every second
+}
+
+
+void checkDeepSleep(){ // checks when esp32 should be sleeping
+  if (hour >= 16){
+    sleep(24.0 - (hour - 12)); // If ESP32 is turned on after 16:00, sleep for 24 - (hour - 12)
+  }
+  if (hour < 12){
+    sleep(12.0 - hour); // If ESP32 is turned on before 12:00, sleep for 12 - hour
+  }
+  if (ontime <= 0){  // Sleeps for 10 hrs if time is 16:00, wakes up at midnight to sync clock, goes back to sleep until 12:00
+    sleep(10.0);
+  }
+}
+
+
+int getOntime(){ // Calculates how long esp32 should stay awake for 
+  hour = timeClient.getFormattedTime().substring(0,2).toInt() + 
+  timeClient.getFormattedTime().substring(3,5).toInt() / 60.0 + 
+  timeClient.getFormattedTime().substring(6).toInt() / 3600.0;
+  return (16 - hour) * 60 * 60;
+}
+
+void sleep(double hrs){ // simplified method for putting esp32 into deep sleep for x hours
+  Serial.println("Going to sleep for " + String(hrs) + " hours.");
+  esp_sleep_enable_timer_wakeup(hrs * 3600000000.0);
+  esp_deep_sleep_start();
+}
+
+void connectToWifi(){
+  int temp = 0;
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    ontime--;
+    temp++;
+    Serial.println("Connecting to WiFi...");
+    if (temp > 10){ // try to connect again if timeout is more than 10 sec
+      break;
+    }
+  }
+  if (temp > 10){
+    connectToWifi();
+  }
+  Serial.println("Connected.");
+}
+void sendToServer(int value) { // sends photoresistor value to server if light is detected
+  HTTPClient http;
+
+  String url = serverUrl;
+
+
+  String payload = "{\"value\":" + String(value) + "}";
+
+
+  http.begin(url);
+  http.addHeader("Content-Type", "application/json");
+
+
+  int httpResponseCode = http.POST(payload);
+
+  // Check the response from the server
+  if (httpResponseCode > 0) {
+    Serial.println("Photoresistor value sent successfully");
+  } else {
+    Serial.println("Error sending photoresistor value");
+    Serial.println("HTTP Response Code: " + String(httpResponseCode));
+  }
+
+  http.end();
+}
