@@ -14,7 +14,7 @@ Initially planned for research project
 
 Breadboarding / circuit design
 
-Worked with UD Computer Engineering professor Dr\. Richard Martin
+Worked with UD Computer Engineering professor [Dr\. Richard Martin](https://www.ece.udel.edu/people/faculty/rdmartin/)
 
 Shifted project focus
 
