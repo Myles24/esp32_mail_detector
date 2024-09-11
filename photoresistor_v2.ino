@@ -5,8 +5,8 @@
 #include <NTPClient.h>
 #include <WiFiUdp.h>
 
-const char *ssid = "Fios-ROOLY";
-const char *password = "legnettew221";
+const char *ssid = "xxxxxxxxxxxxxxx";
+const char *password = "xxxxxxxxxxxxx";
 const char* ntpServer = "pool.ntp.org";
 
 const int sensorPin = 2;
