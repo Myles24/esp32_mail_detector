@@ -5,8 +5,8 @@
 #include <NTPClient.h>
 #include <WiFiUdp.h>
 
-const char *ssid = "Chungus";
-const char *password = "andbrycar1*";
+const char *ssid = "XXXXXXXXXXX";
+const char *password = "XXXXXXXXXXXX";
 const char* ntpServer = "pool.ntp.org";
 const char *serverUrl = "http://192.168.1.112:3000/photoresistor";
 
